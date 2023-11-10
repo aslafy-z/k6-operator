@@ -80,11 +80,17 @@ func createJobSpecs(ctx context.Context, log logr.Logger, k6 v1alpha1.TestRunI, 
 		Namespace: k6.NamespacedName().Namespace,
 	}
 
+	// is it possible to implement this delay with resourceVersion of the job?
+	t, _ := v1alpha1.LastUpdate(k6, v1alpha1.CloudTestRun)
+	if time.Since(t).Minutes() <= 1 {
+		// try again before checking for existence
+		return ctrl.Result{RequeueAfter: time.Second}, nil
+	}
+
 	if err := r.Get(ctx, namespacedName, found); err == nil || !errors.IsNotFound(err) {
 		if err == nil {
 			err = fmt.Errorf("job with the name %s exists; make sure you've deleted your previous run", namespacedName.Name)
 		}
-
 		log.Info(err.Error())
 		return ctrl.Result{}, err
 	}
